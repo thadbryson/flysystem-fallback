@@ -42,23 +42,45 @@ class Fallback
     }
 
     /**
+     * Find what fallback this $path is found in.
+     *
+     * @param string $path
+     *
+     * @return int|false
+     */
+    public function findFallback($path)
+    {
+        foreach ($this->filesystems as $index => $filesystem) {
+
+            if ($filesystem->has($path) === true) {
+                return (int) $index;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Go through each Filesystem to search for a result on a method call.
      *
      * @param string $path
      * @param string $method
-     * @param mixed  $resultNotWanted
      *
      * @return mixed
      */
-    protected function search($path, $method, $resultNotWanted)
+    protected function search($path, $method)
     {
         foreach ($this->filesystems as $filesystem) {
 
-            $result = call_user_func_array([$filesystem, $method], [$path]);
+            try {
+                $result = call_user_func_array([$filesystem, $method], [$path]);
+            } catch (FileNotFoundException $e) {
+                $result = false;
+            }
 
             // If result is not the negative?
             // It's the result we want - return it.
-            if ($result !== $resultNotWanted) {
+            if ($result !== false) {
                 return $result;
             }
         }
@@ -76,7 +98,7 @@ class Fallback
      */
     public function has($path)
     {
-        return $this->search($path, 'has', false);
+        return $this->search($path, 'has');
     }
 
     /**
@@ -90,7 +112,7 @@ class Fallback
      */
     public function read($path)
     {
-        return $this->search($path, 'read', false);
+        return $this->search($path, 'read');
     }
 
     /**
@@ -104,6 +126,6 @@ class Fallback
      */
     public function readStream($path)
     {
-        return $this->search($path, 'readStream', false);
+        return $this->search($path, 'readStream');
     }
 }
