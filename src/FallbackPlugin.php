@@ -18,18 +18,18 @@ class FallbackPlugin implements PluginInterface
      *
      * @var FilesystemInterface
      */
-    protected $master;
+    protected $primary;
 
     /**
-     * Set master Filesystem.
+     * Set primary Filesystem.
      *
-     * @param FilesystemInterface $master
+     * @param FilesystemInterface $primary
      *
      * @return void
      */
-    public function setFilesystem(FilesystemInterface $master)
+    public function setFilesystem(FilesystemInterface $primary)
     {
-        $this->master = $master;
+        $this->primary = $primary;
     }
 
     /**
@@ -51,6 +51,6 @@ class FallbackPlugin implements PluginInterface
      */
     public function handle(array $fallbacks)
     {
-        return new Fallback($this->master, $fallbacks);
+        return new Fallback($this->primary, $fallbacks);
     }
 }

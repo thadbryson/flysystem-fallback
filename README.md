@@ -1,103 +1,69 @@
-Flysystem Sync Plugin
-=====================
+Flysystem Fallback Plugin
+=========================
 
 Installation
 ------------
 
 Use Composer:
 ```
-"thadbryson/flysystem-sync": "@stable"
+"thadbryson/flysystem-fallback": "@stable"
 ```
 
 This is a plugin for the Flysystem project. https://github.com/thephpleague/flysystem
 
-It helps you sync 2 directories at a time. There are two types.
-
-Master
-------
-Contents of this directory are moved to Slave for writing and updating. If this folder has a path that Slave doesn't then the path on Slave is deleted.
-
-Slave
------
-Target directory. Where things are moved to or deleted from.
-
-How To
-======
+It allows you to create a Filesystem hierarchy. If a **path** isn't in one Filesystem it will go to the next one until it finds it. Or runs out of Filesystems.
 
 Here is some example code to set everything up.
 
-```php
+### Primary
 
-use TCB\Flysystem\Sync;
-use TCB\Flysystem\SyncPlugin;
+The ```$primary``` Filesystem is the main one. It gets checked **1st**.
+
+### Fallbacks
+
+The ```$fallback``` Filesystems are ones checked after $primary. They go in order in their array.
+
+### Example
+
+```php
+use TCB\Flysystem\Fallback;
+use TCB\Flysystem\FallbackPlugin;
 
 use League\Flysystem\Filesystem;
 use League\Flysystem\Adapter\Local as Adapter;
 
-// Setup file system.
-$master = new Filesystem(new Adapter(__DIR__ . '/sync-test/master'));
-$slave  = new Filesystem(new Adapter(__DIR__ . '/sync-test/slave'));
+// So client #1 has their own theme.
+$primary = new Filesystem(new Adapter('~/themes/client-1'));
 
-// Add plugin
-$master->addPlugin(new SyncPlugin());
+// Let's set the fallbacks in order.
+$fallbacks = [
+    '1'       => new Filesystem(new Adapter('~/themes/red')),
+    'default' => new Filesystem(new Adapter('~/themes/default')),
+];
 
-// Get the sync object out. Use root directory. That '/' variable can be any subpath directory.
-$sync = $master->getSync($slave, '/');
+// Add the Plugin.
+$primary->addPlugin(new FallbackPlugin());
 
-// You can also just create the Sync object without using a Plugin.
-// Again that '/' variable can be any subpath directory.
-$sync = new Sync($master, $slave, '/');
+// You can get the Fallback object from the 'getFallback()' plugin method.
+$fallback = $primary->getFallback($fallbacks);
+
+// OR - you can just create the Fallback object directly.
+$fallback = new Fallback($primary, $fallbacks);
 ```
 
-Here is how to actually sync things.
+### Methods you can call
 
-```php
-// You can do these things separately.
-// You may want to do them separately if you add things on Slave that you wouldn't want deleted later.
+These ```Filesystem``` methods are available on Fallback. The first Filesystem with the
+path found will return the result from that Filesystem or "hit".
 
-// Add all folders and files ON MASTER and NOT ON SLAVE.
-$sync->syncWrites();
 
-// Delete all folders and files NOT ON MASTER and on SLAVE.
-$sync->syncDeletes();
+NOTE: all these methods return ```FALSE``` if $path is not found.
 
-// Update all folders and files that are on both MASTER and SLAVE.
-$sync->syncUpdates();
+- has(string $path): Do any of these Filesystems have this path?
+- read(string $path): Read file contents from first "hit".
+- readStream(string $path): Read a stream of the file contents from first "hit".
 
-// This will do all these things at once.
-$sync->sync();
-```
+Other methods available:
 
-And you can get what all these paths are going to be separately.
-
-```php
-
-$paths = $sync->getWrites();  // array of what paths will be written. On Master but not on Slave.
-
-$paths = $sync->getDeletes(); // array of what paths will be deleted. On Slave but not on Master.
-
-$paths = $sync->getUpdates(); // array of what paths will be updated. On both Master and Slave.
-
-```
-
-Example Path Array
-==================
-
-```
-array(1) {
-    'create-dir/3.php' =>
-        array(8) {
-            'dirname' => string(10) "create-dir"
-            'basename' => string(5) "3.php"
-            'extension' => string(3) "php"
-            'filename' => string(1) "3"
-            'path' => string(16) "create-dir/3.php"
-            'type' => string(4) "file"
-            'timestamp' => int(1418432987)
-            'size' => int(26)
-        }
-}
-```
-
-That's an example from a var_dump() of what a path will give you.
-
+- find(string $path): Returns the Filesystem object of the first hit.
+- findIndex(string $path): Returns index string/int of Filesystem with $path. Will return FALSE if not found.

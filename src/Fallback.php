@@ -4,7 +4,6 @@ namespace TCB\Flysystem;
 
 use League\Flysystem\FileNotFoundException;
 use League\Flysystem\FilesystemInterface;
-use TCB\Flysystem\Exceptions\InvalidFallbackFilesystemException;
 
 /**
  * Class Fallback
@@ -24,36 +23,46 @@ class Fallback
     /**
      * Fallback constructor.
      *
-     * @param FilesystemInterface $master
+     * @param FilesystemInterface $primary
      * @param array               $fallbacks
      */
-    public function __construct(FilesystemInterface $master, array $fallbacks)
+    public function __construct(FilesystemInterface $primary, array $fallbacks)
     {
-        $this->filesystems = array_merge([$master], $fallbacks);
+        // Add primary to beginning of array.
+        $this->filesystems = [$primary];
 
-        // Check Fallbaks are FilesystemInterface
-        foreach ($this->filesystems as $index => $filesystem) {
+        // Add each Fallback.
+        foreach ($fallbacks as $index => $fallback) {
 
-            // Invalid FilesystemObject.
-            if ($filesystem instanceof FilesystemInterface === false) {
-                throw new InvalidFallbackFilesystemException($index);
-            }
+            $this->add($fallback);
         }
     }
 
     /**
-     * Find what fallback this $path is found in.
+     * Add a fallback Filesystem.
+     *
+     * @param \League\Flysystem\FilesystemInterface $fallback
+     *
+     * @return void
+     */
+    protected function add(FilesystemInterface $fallback)
+    {
+        $this->filesystems[] = $fallback;
+    }
+
+    /**
+     * Find what index of Filesystem
      *
      * @param string $path
      *
-     * @return int|false
+     * @return int|string|false
      */
-    public function findFallback($path)
+    public function findIndex($path)
     {
         foreach ($this->filesystems as $index => $filesystem) {
 
             if ($filesystem->has($path) === true) {
-                return (int) $index;
+                return $index;
             }
         }
 
@@ -61,32 +70,22 @@ class Fallback
     }
 
     /**
-     * Go through each Filesystem to search for a result on a method call.
+     * Find what Filesystem this path is in. By priority.
      *
      * @param string $path
-     * @param string $method
      *
-     * @return mixed
+     * @return FilesystemInterface|false
      */
-    protected function search($path, $method)
+    public function find($path)
     {
-        foreach ($this->filesystems as $filesystem) {
+        $index = $this->findIndex($path);
 
-            try {
-                $result = call_user_func_array([$filesystem, $method], [$path]);
-            } catch (FileNotFoundException $e) {
-                $result = false;
-            }
-
-            // If result is not the negative?
-            // It's the result we want - return it.
-            if ($result !== false) {
-                return $result;
-            }
+        // Not found?
+        if ($index === false) {
+            return false;
         }
 
-        // Failure - return FALSE
-        return false;
+        return $this->filesystems[$index];
     }
 
     /**
@@ -98,7 +97,7 @@ class Fallback
      */
     public function has($path)
     {
-        return $this->search($path, 'has');
+        return $this->execute($path, 'has');
     }
 
     /**
@@ -112,7 +111,7 @@ class Fallback
      */
     public function read($path)
     {
-        return $this->search($path, 'read');
+        return $this->execute($path, 'read');
     }
 
     /**
@@ -126,6 +125,27 @@ class Fallback
      */
     public function readStream($path)
     {
-        return $this->search($path, 'readStream');
+        return $this->execute($path, 'readStream');
+    }
+
+    /**
+     * Go through each Filesystem to search for a result on a method call.
+     *
+     * @param string $path
+     * @param string $method
+     *
+     * @return mixed
+     */
+    protected function execute($path, $method)
+    {
+        $filesystem = $this->find($path);
+
+        // Not found?
+        if ($filesystem === false) {
+            return false;
+        }
+
+        // Call method on object.
+        return call_user_func_array([$filesystem, $method], [$path]);
     }
 }
