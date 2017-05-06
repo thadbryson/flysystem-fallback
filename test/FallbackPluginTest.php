@@ -31,6 +31,7 @@ class FallbackPluginTest extends \PHPUnit_Framework_TestCase
 
         $fallbacks[] = new Filesystem(new Adapter(__DIR__ . '/dirs/fallbacks/fallback.0'));
 
+        /** @var FallbackPlugin $primary */
         $this->fallback = $primary->getFallback($fallbacks);
     }
 

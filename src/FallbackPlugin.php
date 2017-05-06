@@ -9,6 +9,8 @@ use League\Flysystem\PluginInterface;
  * class FallbackPlugin
  *
  * @author Thad Bryson <thadbry@gmail.com>
+ *
+ * @method Fallback getFallback(array $filesystems)
  */
 class FallbackPlugin implements PluginInterface
 {
